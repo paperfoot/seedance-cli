@@ -79,6 +79,7 @@ pub fn run(
         references: References::default(),
         video_url: Some(video_url.clone()),
         last_frame_url,
+        completion_tokens: task.usage.as_ref().and_then(|u| u.completion_tokens),
         downloaded_to: path.display().to_string(),
     };
     let (manifest_path, manifest_error) = match manifest::write(&path, &m) {

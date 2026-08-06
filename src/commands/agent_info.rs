@@ -18,7 +18,7 @@ pub fn run() {
                     {"name": "--first-frame",                      "type": "string", "required": false, "description": "Image used as first frame (role=first_frame)"},
                     {"name": "--last-frame",                       "type": "string", "required": false, "description": "Image used as last frame (role=last_frame, requires --first-frame)"},
                     {"name": "--video",             "short": "-v", "type": "string", "required": false, "multiple": true, "description": "Reference video URL (repeatable, max 3 on Seedance 2.0 / 10 on 2.5, local paths not supported)"},
-                    {"name": "--audio",             "short": "-a", "type": "string", "required": false, "multiple": true, "description": "Reference audio path or URL (wav/mp3, repeatable, max 3 on Seedance 2.0 / 10 on 2.5; requires at least one image or video)"},
+                    {"name": "--audio",             "short": "-a", "type": "string", "required": false, "multiple": true, "description": "Reference audio path or URL (wav/mp3, repeatable, max 3 on Seedance 2.0 / 10 on 2.5; on the 2.0 series requires at least one image or video -- Seedance 2.5 supports audio-only driving)"},
                     {"name": "--duration",          "short": "-d", "type": "integer", "required": false, "default": 5, "description": "Seconds [4,15] or -1 for auto on Seedance 2.0; [4,30] on 2.5"},
                     {"name": "--resolution",        "short": "-r", "type": "string", "required": false, "default": "720p", "values": ["480p", "720p", "1080p", "4k"], "description": "Output resolution. Seedance 2.0 supports all four; fast/mini tiers are 480p/720p only. 4k is 10-bit and rate-limited to 15 RPM / concurrency 1."},
                     {"name": "--ratio",                            "type": "string", "required": false, "default": "adaptive", "values": ["16:9","4:3","1:1","3:4","9:16","21:9","adaptive"], "description": "Aspect ratio"},
@@ -202,7 +202,7 @@ pub fn run() {
             "fast_model": crate::config::DEFAULT_MODEL_FAST,
             "mini_model": crate::config::DEFAULT_MODEL_MINI,
             "reference_limits": {
-                "note": "Limits below are the Seedance 2.0 series envelope. Seedance 2.5 raises them to 30 images / 10 videos / 10 audio and allows up to 30s output.",
+                "note": "Limits below are the Seedance 2.0 series envelope. Seedance 2.5 raises them to 30 images / 10 videos / 10 audio (30s combined for videos and audio), allows up to 30s output, and supports audio-only driving.",
                 "images": "0-9",
                 "videos": "0-3 URLs, total <=15s, local paths not supported by API",
                 "audio": "0-3 (wav/mp3), total <=15s, must accompany at least one image or video"

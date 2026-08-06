@@ -194,6 +194,31 @@ fn generate_audio_only_references_rejected() {
     );
 }
 
+/// Seedance 2.5 officially supports audio-only driving, so the audio-only
+/// guard must not fire there. With no API key in the environment, validation
+/// passing means the failure moves on to the config (exit 2), not
+/// invalid_input (exit 3).
+#[test]
+fn generate_audio_only_allowed_on_seedance_2_5() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut c = isolated_bin(&tmp);
+    let output = c
+        .args([
+            "generate",
+            "--prompt",
+            "hi",
+            "--audio",
+            "https://example.com/a.wav",
+            "--model",
+            "dreamina-seedance-2-5-260628",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "expected config error, not validation");
+    let v: Value = serde_json::from_slice(&output.stderr).unwrap();
+    assert_eq!(v["error"]["code"], "config_error");
+}
+
 #[test]
 fn generate_too_many_images_rejected() {
     let mut c = bin();

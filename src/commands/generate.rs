@@ -189,6 +189,7 @@ pub fn run(ctx: Ctx, args: GenerateArgs) -> Result<(), AppError> {
         },
         video_url: Some(video_url.clone()),
         last_frame_url: last_frame_url.clone(),
+        completion_tokens: task.usage.as_ref().and_then(|u| u.completion_tokens),
         downloaded_to: downloaded_to.clone(),
     };
     // Non-fatal: the mp4 is on disk even if we can't persist the sidecar.
@@ -264,6 +265,13 @@ struct ModelLimits {
     max_videos: usize,
     max_audio: usize,
     max_duration: i32,
+    /// Combined duration budget across all reference videos (and audio),
+    /// used in error messages only -- the server enforces the real cap.
+    max_ref_total_secs: u32,
+    /// Seedance 2.5 officially supports audio-only driving (Dreamina User
+    /// Guide, 2026-07-31); the 2.0 series requires an image or video
+    /// alongside audio.
+    audio_only_ok: bool,
     label: &'static str,
 }
 
@@ -274,6 +282,8 @@ fn limits_for(model: &str) -> ModelLimits {
             max_videos: 10,
             max_audio: 10,
             max_duration: 30,
+            max_ref_total_secs: 30,
+            audio_only_ok: true,
             label: "Seedance 2.5",
         }
     } else {
@@ -282,6 +292,8 @@ fn limits_for(model: &str) -> ModelLimits {
             max_videos: 3,
             max_audio: 3,
             max_duration: 15,
+            max_ref_total_secs: 15,
+            audio_only_ok: false,
             label: "Seedance 2.0",
         }
     }
@@ -312,29 +324,33 @@ fn validate(args: &GenerateArgs, model: &str) -> Result<(), AppError> {
     }
     if args.videos.len() > limits.max_videos {
         return Err(AppError::InvalidInput(format!(
-            "too many reference videos: {}. Max {} for {} (and total duration <=15s, server-enforced).",
+            "too many reference videos: {}. Max {} for {} (and total duration <={}s, server-enforced).",
             args.videos.len(),
             limits.max_videos,
-            limits.label
+            limits.label,
+            limits.max_ref_total_secs
         )));
     }
     if args.audio.len() > limits.max_audio {
         return Err(AppError::InvalidInput(format!(
-            "too many reference audio clips: {}. Max {} for {} (and total duration <=15s, server-enforced).",
+            "too many reference audio clips: {}. Max {} for {} (and total duration <={}s, server-enforced).",
             args.audio.len(),
             limits.max_audio,
-            limits.label
+            limits.label,
+            limits.max_ref_total_secs
         )));
     }
 
-    if !args.audio.is_empty()
+    if !limits.audio_only_ok
+        && !args.audio.is_empty()
         && args.images.is_empty()
         && args.videos.is_empty()
         && args.first_frame.is_none()
     {
-        return Err(AppError::InvalidInput(
-            "audio cannot be the only reference -- add at least one --image or --video".into(),
-        ));
+        return Err(AppError::InvalidInput(format!(
+            "audio cannot be the only reference on {} -- add at least one --image or --video (Seedance 2.5 supports audio-only driving)",
+            limits.label
+        )));
     }
 
     if args.duration != -1 && !(4..=limits.max_duration).contains(&args.duration) {

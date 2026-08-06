@@ -316,8 +316,9 @@ pub struct GenerateArgs {
     pub videos: Vec<String>,
 
     /// Reference audio (local path or URL, wav/mp3). Repeatable, up to 3 on
-    /// Seedance 2.0 (10 on 2.5), total <=15s. Cannot be the only reference --
-    /// requires at least one image or video.
+    /// Seedance 2.0 (10 on 2.5), total <=15s (30s on 2.5). On the 2.0 series
+    /// audio cannot be the only reference; Seedance 2.5 supports audio-only
+    /// driving.
     #[arg(long = "audio", short = 'a', value_name = "PATH|URL")]
     pub audio: Vec<String>,
 
