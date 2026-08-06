@@ -9,7 +9,7 @@ pub fn run() {
         "description": env!("CARGO_PKG_DESCRIPTION"),
         "commands": {
             "generate": {
-                "description": "Create a video generation task with Seedance 2.0 (alias: gen)",
+                "description": "Create a video generation task with Seedance 2.0 or 2.5 (alias: gen)",
                 "aliases": ["gen"],
                 "args": [],
                 "options": [
@@ -48,7 +48,7 @@ pub fn run() {
                     "schema": "seedance.v1",
                     "source": "generate",
                     "completeness": "full -- prompt and references are present.",
-                    "fields": ["task_id", "source", "model", "status", "created_at", "label", "project", "prompt", "resolution", "ratio", "duration", "seed", "generate_audio", "references", "video_url", "last_frame_url", "downloaded_to"],
+                    "fields": ["task_id", "source", "model", "status", "created_at", "label", "project", "prompt", "resolution", "ratio", "duration", "seed", "generate_audio", "references", "video_url", "last_frame_url", "completion_tokens", "downloaded_to"],
                     "purpose": "Agents inspect the sidecar to know which prompt produced which file; no filename guesswork. Key on the `source` field to distinguish generate-time (full) from download-time (partial) manifests."
                 }
             },

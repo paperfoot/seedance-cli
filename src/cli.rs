@@ -4,8 +4,10 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 #[command(
     name = "seedance",
     version,
-    about = "Generate video with ByteDance Seedance 2.0 from the terminal.",
-    long_about = "Generate video with ByteDance Seedance 2.0 via the BytePlus ModelArk API.
+    about = "Generate video with ByteDance Seedance (2.0 / 2.5) from the terminal.",
+    long_about = "Generate video with ByteDance Seedance via the BytePlus ModelArk API.
+Defaults to Seedance 2.0; Seedance 2.5 (dreamina-seedance-2-5-260628) is supported via --model
+the moment BytePlus opens API access.
 
 Supports text-to-video, image-to-video (first / first+last / up to 9 reference images),
 reference videos, reference audio, and multimodal mixes. Use time-coded prompts like
@@ -33,7 +35,8 @@ Tips:
     or export SEEDANCE_API_KEY / ARK_API_KEY
   * Reference files: images and audio can be local paths (base64-encoded inline) OR URLs
   * Videos must be URLs -- the API does not accept base64 for video
-  * Audio alone is not allowed -- Seedance requires at least one image or video alongside audio
+  * Audio alone is not allowed on the 2.0 series (needs an image or video alongside);
+    Seedance 2.5 supports audio-only driving
   * Known quirk: uploading audio mutates lyrics. Workaround: render a silent MP4 with the audio
     baked in, then pass it as --video (credit: @simeonnz via @MrDavids1)
   * Use --wait to block until the task finishes and download the result in one command

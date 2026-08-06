@@ -10,7 +10,7 @@ fn skill_content() -> String {
         r#"---
 name: {name}
 description: >
-  Generate video with ByteDance Seedance 2.0 from the terminal. Supports text-to-video,
+  Generate video with ByteDance Seedance 2.0 / 2.5 from the terminal. Supports text-to-video,
   image-to-video (first / first+last / up to 9 reference images), reference videos,
   reference audio, and multimodal mixes. Run `{name} agent-info` for the full capability
   manifest, flags, and exit codes. Run `{name} doctor` before first use. For prompt-writing
@@ -20,7 +20,7 @@ description: >
 
 ## {name}
 
-A CLI wrapper for ByteDance Seedance 2.0 via BytePlus ModelArk. Binary is the tool --
+A CLI wrapper for ByteDance Seedance (2.0 / 2.5) via BytePlus ModelArk. Binary is the tool --
 run `{name} agent-info` for the machine-readable schema.
 
 Fast path:
