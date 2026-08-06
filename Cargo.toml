@@ -1,9 +1,9 @@
 [package]
 name = "seedance"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2024"
 rust-version = "1.85"
-description = "Generate video with ByteDance Seedance 2.0 from the terminal. Agent-friendly."
+description = "Generate video with ByteDance Seedance 2.0 / 2.5 from the terminal. Agent-friendly."
 license = "MIT"
 repository = "https://github.com/paperfoot/seedance-cli"
 homepage = "https://github.com/paperfoot/seedance-cli"

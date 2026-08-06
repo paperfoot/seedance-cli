@@ -167,6 +167,17 @@ pub struct CreateTaskRequest {
     pub callback_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub safety_identifier: Option<String>,
+    /// Ask the API to return the generated video's last frame (full
+    /// resolution, no watermark) via GetTask -- the official primitive for
+    /// chaining consecutive clips.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub return_last_frame: Option<bool>,
+    /// Queue priority 0-9 (higher jumps the queue). Seedance 2.0 only.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub priority: Option<i32>,
+    /// Seconds a queued/running task may live before the API expires it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub execution_expires_after: Option<i64>,
 }
 
 #[derive(Serialize, Debug)]

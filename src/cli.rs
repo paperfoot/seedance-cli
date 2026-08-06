@@ -4,8 +4,10 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 #[command(
     name = "seedance",
     version,
-    about = "Generate video with ByteDance Seedance 2.0 from the terminal.",
-    long_about = "Generate video with ByteDance Seedance 2.0 via the BytePlus ModelArk API.
+    about = "Generate video with ByteDance Seedance (2.0 / 2.5) from the terminal.",
+    long_about = "Generate video with ByteDance Seedance via the BytePlus ModelArk API.
+Defaults to Seedance 2.0; Seedance 2.5 (dreamina-seedance-2-5-260628) is supported via --model
+the moment BytePlus opens API access.
 
 Supports text-to-video, image-to-video (first / first+last / up to 9 reference images),
 reference videos, reference audio, and multimodal mixes. Use time-coded prompts like
@@ -33,7 +35,8 @@ Tips:
     or export SEEDANCE_API_KEY / ARK_API_KEY
   * Reference files: images and audio can be local paths (base64-encoded inline) OR URLs
   * Videos must be URLs -- the API does not accept base64 for video
-  * Audio alone is not allowed -- Seedance requires at least one image or video alongside audio
+  * Audio alone is not allowed on the 2.0 series (needs an image or video alongside);
+    Seedance 2.5 supports audio-only driving
   * Known quirk: uploading audio mutates lyrics. Workaround: render a silent MP4 with the audio
     baked in, then pass it as --video (credit: @simeonnz via @MrDavids1)
   * Use --wait to block until the task finishes and download the result in one command
@@ -77,6 +80,10 @@ pub enum Resolution {
     P480,
     #[value(name = "720p")]
     P720,
+    #[value(name = "1080p")]
+    P1080,
+    #[value(name = "4k")]
+    K4,
 }
 
 impl Resolution {
@@ -84,6 +91,8 @@ impl Resolution {
         match self {
             Self::P480 => "480p",
             Self::P720 => "720p",
+            Self::P1080 => "1080p",
+            Self::K4 => "4k",
         }
     }
 }
@@ -284,8 +293,9 @@ pub struct GenerateArgs {
     #[arg(long, short = 'p')]
     pub prompt: Option<String>,
 
-    /// Reference image (local path or URL). Repeatable, up to 9.
-    /// Role is `reference_image`. Use --first-frame / --last-frame for those modes.
+    /// Reference image (local path or URL). Repeatable, up to 9 on Seedance 2.0
+    /// (30 on 2.5). Role is `reference_image`. Use --first-frame / --last-frame
+    /// for those modes.
     #[arg(long = "image", short = 'i', value_name = "PATH|URL")]
     pub images: Vec<String>,
 
@@ -302,21 +312,27 @@ pub struct GenerateArgs {
     )]
     pub last_frame: Option<String>,
 
-    /// Reference video URL (role=reference_video). Repeatable, up to 3, total <=15s.
-    /// Local paths are NOT supported by the API -- upload to a URL first.
+    /// Reference video URL (role=reference_video). Repeatable, up to 3 on
+    /// Seedance 2.0 (10 on 2.5), total <=15s. Local paths are NOT supported by
+    /// the API -- upload to a URL first.
     #[arg(long = "video", short = 'v', value_name = "URL")]
     pub videos: Vec<String>,
 
-    /// Reference audio (local path or URL, wav/mp3). Repeatable, up to 3, total <=15s.
-    /// Cannot be the only reference -- requires at least one image or video.
+    /// Reference audio (local path or URL, wav/mp3). Repeatable, up to 3 on
+    /// Seedance 2.0 (10 on 2.5), total <=15s (30s on 2.5). On the 2.0 series
+    /// audio cannot be the only reference; Seedance 2.5 supports audio-only
+    /// driving.
     #[arg(long = "audio", short = 'a', value_name = "PATH|URL")]
     pub audio: Vec<String>,
 
-    /// Video duration in seconds. [4,15] or -1 for auto (Seedance 2.0).
+    /// Video duration in seconds. [4,15] or -1 for auto on Seedance 2.0;
+    /// [4,30] on Seedance 2.5.
     #[arg(long, short = 'd', default_value_t = 5, allow_hyphen_values = true)]
     pub duration: i32,
 
-    /// Output resolution. Seedance 2.0 does not support 1080p.
+    /// Output resolution. Seedance 2.0 supports all four; the fast and mini
+    /// tiers are 480p/720p only (server-enforced). 4k is 10-bit encoded and
+    /// runs under a much tighter rate limit (15 RPM, concurrency 1).
     #[arg(long, short = 'r', value_enum, default_value = "720p")]
     pub resolution: Resolution,
 
@@ -348,7 +364,12 @@ pub struct GenerateArgs {
     #[arg(long, conflicts_with = "model")]
     pub fast: bool,
 
-    /// Override model id (default: dreamina-seedance-2-0-260128, or the fast variant with --fast)
+    /// Use the Seedance 2.0 Mini tier (cheapest 2.0-series tier; 480p/720p only)
+    #[arg(long, conflicts_with_all = ["model", "fast"])]
+    pub mini: bool,
+
+    /// Override model id (default: dreamina-seedance-2-0-260128; the fast variant
+    /// with --fast, the mini variant with --mini)
     #[arg(long)]
     pub model: Option<String>,
 
@@ -359,6 +380,21 @@ pub struct GenerateArgs {
     /// Hashed end-user id for abuse tracking (optional, <=64 ASCII chars)
     #[arg(long, value_name = "ID")]
     pub safety_identifier: Option<String>,
+
+    /// Also return the video's last frame (full resolution, NO watermark) --
+    /// the official chaining primitive. The URL lands in `last_frame_url` in
+    /// the output and sidecar; feed it to the next shot's --first-frame to
+    /// continue a scene without ffmpeg frame extraction.
+    #[arg(long)]
+    pub return_last_frame: bool,
+
+    /// Queue priority 0-9; higher jumps the queue (Seedance 2.0 series only).
+    #[arg(long, value_name = "0-9")]
+    pub priority: Option<i32>,
+
+    /// Expire the task if still queued/running after this many seconds
+    #[arg(long, value_name = "SECS")]
+    pub expires_after: Option<i64>,
 
     /// Block until the task finishes, then optionally download the video
     #[arg(long, short = 'w')]

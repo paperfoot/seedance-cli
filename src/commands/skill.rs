@@ -10,7 +10,7 @@ fn skill_content() -> String {
         r#"---
 name: {name}
 description: >
-  Generate video with ByteDance Seedance 2.0 from the terminal. Supports text-to-video,
+  Generate video with ByteDance Seedance 2.0 / 2.5 from the terminal. Supports text-to-video,
   image-to-video (first / first+last / up to 9 reference images), reference videos,
   reference audio, and multimodal mixes. Run `{name} agent-info` for the full capability
   manifest, flags, and exit codes. Run `{name} doctor` before first use. For prompt-writing
@@ -20,7 +20,7 @@ description: >
 
 ## {name}
 
-A CLI wrapper for ByteDance Seedance 2.0 via BytePlus ModelArk. Binary is the tool --
+A CLI wrapper for ByteDance Seedance (2.0 / 2.5) via BytePlus ModelArk. Binary is the tool --
 run `{name} agent-info` for the machine-readable schema.
 
 Fast path:
@@ -29,15 +29,19 @@ Fast path:
 
 Key flags for `generate`:
   --prompt / -p           Text prompt (supports [Image N], [Video N], [Audio N], time codes)
-  --image / -i            Reference image (repeatable, max 9; path or URL)
+  --image / -i            Reference image (repeatable, max 9 on 2.0 / 30 on 2.5; path or URL)
   --first-frame           First frame image (mode switch)
   --last-frame            Last frame image (requires --first-frame)
-  --video / -v            Reference video URL (repeatable, max 3, URLs only)
-  --audio / -a            Reference audio (repeatable, max 3; needs image or video alongside)
-  --duration / -d         Seconds [4,15] or -1 for auto
-  --resolution / -r       480p | 720p (2.0 has no 1080p)
+  --video / -v            Reference video URL (repeatable, max 3 on 2.0 / 10 on 2.5, URLs only)
+  --audio / -a            Reference audio (repeatable, max 3 on 2.0 / 10 on 2.5; needs image or video alongside)
+  --duration / -d         Seconds [4,15] or -1 for auto on 2.0; [4,30] on 2.5
+  --resolution / -r       480p | 720p | 1080p | 4k (fast/mini tiers are 480p/720p only)
   --ratio                 16:9 | 4:3 | 1:1 | 3:4 | 9:16 | 21:9 | adaptive
   --fast                  Use Seedance 2.0 Fast
+  --mini                  Use Seedance 2.0 Mini (cheapest 2.0-series tier)
+  --return-last-frame     Also return the final frame (full res, no watermark) as last_frame_url;
+                          feed it to the next shot's --first-frame to chain scenes
+  --priority              Queue priority 0-9 (2.0 series only; higher jumps the queue)
   --wait / --output       Block until done, download mp4 to ~/Documents/seedance/ by default
   --label                 Human slug in the default filename + sidecar manifest (e.g. "cafe-opening")
   --project               Nest output under ~/Documents/seedance/<project>/

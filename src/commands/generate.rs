@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use crate::api::{ApiClient, ContentItem, CreateTaskRequest, TaskInfo, UrlObject};
 use crate::cli::GenerateArgs;
-use crate::config::{self, DEFAULT_MODEL, DEFAULT_MODEL_FAST};
+use crate::config::{self, DEFAULT_MODEL, DEFAULT_MODEL_FAST, DEFAULT_MODEL_MINI};
 use crate::error::AppError;
 use crate::manifest::{self, Manifest, References};
 use crate::media::{self, Kind};
@@ -36,25 +36,31 @@ struct GenerateResult {
 }
 
 pub fn run(ctx: Ctx, args: GenerateArgs) -> Result<(), AppError> {
-    validate(&args)?;
-
     let cfg = config::load()?;
-    let api_key = config::resolve_api_key(args.api_key.as_deref(), &cfg).ok_or_else(|| {
-        AppError::Config(
-            "no API key found. Set SEEDANCE_API_KEY (or ARK_API_KEY), pass --api-key, or write it to config."
-                .into(),
-        )
-    })?;
 
+    // Resolve the model before validating: the reference caps and duration
+    // ceiling differ between the 2.0 series and 2.5, so the limits are only
+    // knowable once we know which model this request targets.
     let model = args.model.clone().unwrap_or_else(|| {
         if args.fast {
             DEFAULT_MODEL_FAST.to_string()
+        } else if args.mini {
+            DEFAULT_MODEL_MINI.to_string()
         } else if cfg.model == DEFAULT_MODEL {
             DEFAULT_MODEL.to_string()
         } else {
             cfg.model.clone()
         }
     });
+
+    validate(&args, &model)?;
+
+    let api_key = config::resolve_api_key(args.api_key.as_deref(), &cfg).ok_or_else(|| {
+        AppError::Config(
+            "no API key found. Set SEEDANCE_API_KEY (or ARK_API_KEY), pass --api-key, or write it to config."
+                .into(),
+        )
+    })?;
 
     let content = build_content(&args)?;
     let generate_audio = if args.no_audio_sync {
@@ -74,6 +80,9 @@ pub fn run(ctx: Ctx, args: GenerateArgs) -> Result<(), AppError> {
         watermark: Some(args.watermark),
         callback_url: args.callback_url.clone(),
         safety_identifier: args.safety_identifier.clone(),
+        return_last_frame: args.return_last_frame.then_some(true),
+        priority: args.priority,
+        execution_expires_after: args.expires_after,
     };
 
     // Duplicate-guard: hash the request and reject identical retries within 10 minutes.
@@ -183,6 +192,7 @@ pub fn run(ctx: Ctx, args: GenerateArgs) -> Result<(), AppError> {
         },
         video_url: Some(video_url.clone()),
         last_frame_url: last_frame_url.clone(),
+        completion_tokens: task.usage.as_ref().and_then(|u| u.completion_tokens),
         downloaded_to: downloaded_to.clone(),
     };
     // Non-fatal: the mp4 is on disk even if we can't persist the sidecar.
@@ -249,7 +259,52 @@ fn warn_on_slug_collapse(ctx: Ctx, flag: &str, raw: Option<&str>) {
     }
 }
 
-fn validate(args: &GenerateArgs) -> Result<(), AppError> {
+/// Per-model request envelope. Seedance 2.5 raises both the reference caps and
+/// the duration ceiling; every other published model follows the 2.0-series
+/// envelope. Unknown / future model ids fall back to the 2.0 numbers, which is
+/// the conservative choice -- the server rejects anything we let through.
+struct ModelLimits {
+    max_images: usize,
+    max_videos: usize,
+    max_audio: usize,
+    max_duration: i32,
+    /// Combined duration budget across all reference videos (and audio),
+    /// used in error messages only -- the server enforces the real cap.
+    max_ref_total_secs: u32,
+    /// Seedance 2.5 officially supports audio-only driving (Dreamina User
+    /// Guide, 2026-07-31); the 2.0 series requires an image or video
+    /// alongside audio.
+    audio_only_ok: bool,
+    label: &'static str,
+}
+
+fn limits_for(model: &str) -> ModelLimits {
+    if model.contains("seedance-2-5") {
+        ModelLimits {
+            max_images: 30,
+            max_videos: 10,
+            max_audio: 10,
+            max_duration: 30,
+            max_ref_total_secs: 30,
+            audio_only_ok: true,
+            label: "Seedance 2.5",
+        }
+    } else {
+        ModelLimits {
+            max_images: 9,
+            max_videos: 3,
+            max_audio: 3,
+            max_duration: 15,
+            max_ref_total_secs: 15,
+            audio_only_ok: false,
+            label: "Seedance 2.0",
+        }
+    }
+}
+
+fn validate(args: &GenerateArgs, model: &str) -> Result<(), AppError> {
+    let limits = limits_for(model);
+
     // Must have something to generate from.
     let has_prompt = args.prompt.as_deref().is_some_and(|s| !s.trim().is_empty());
     let has_refs = !args.images.is_empty()
@@ -262,39 +317,57 @@ fn validate(args: &GenerateArgs) -> Result<(), AppError> {
         ));
     }
 
-    if args.images.len() > 9 {
+    if args.images.len() > limits.max_images {
         return Err(AppError::InvalidInput(format!(
-            "too many reference images: {}. Max 9 for Seedance 2.0.",
-            args.images.len()
+            "too many reference images: {}. Max {} for {}.",
+            args.images.len(),
+            limits.max_images,
+            limits.label
         )));
     }
-    if args.videos.len() > 3 {
+    if args.videos.len() > limits.max_videos {
         return Err(AppError::InvalidInput(format!(
-            "too many reference videos: {}. Max 3 (and total duration <=15s, server-enforced).",
-            args.videos.len()
+            "too many reference videos: {}. Max {} for {} (and total duration <={}s, server-enforced).",
+            args.videos.len(),
+            limits.max_videos,
+            limits.label,
+            limits.max_ref_total_secs
         )));
     }
-    if args.audio.len() > 3 {
+    if args.audio.len() > limits.max_audio {
         return Err(AppError::InvalidInput(format!(
-            "too many reference audio clips: {}. Max 3 (and total duration <=15s, server-enforced).",
-            args.audio.len()
+            "too many reference audio clips: {}. Max {} for {} (and total duration <={}s, server-enforced).",
+            args.audio.len(),
+            limits.max_audio,
+            limits.label,
+            limits.max_ref_total_secs
         )));
     }
 
-    if !args.audio.is_empty()
+    if !limits.audio_only_ok
+        && !args.audio.is_empty()
         && args.images.is_empty()
         && args.videos.is_empty()
         && args.first_frame.is_none()
     {
-        return Err(AppError::InvalidInput(
-            "audio cannot be the only reference -- add at least one --image or --video".into(),
-        ));
+        return Err(AppError::InvalidInput(format!(
+            "audio cannot be the only reference on {} -- add at least one --image or --video (Seedance 2.5 supports audio-only driving)",
+            limits.label
+        )));
     }
 
-    if args.duration != -1 && !(4..=15).contains(&args.duration) {
+    if let Some(p) = args.priority
+        && !(0..=9).contains(&p)
+    {
         return Err(AppError::InvalidInput(format!(
-            "duration {} out of range. Use [4,15] or -1 for auto.",
-            args.duration
+            "priority {p} out of range. Use 0-9 (higher jumps the queue; Seedance 2.0 series only)."
+        )));
+    }
+
+    if args.duration != -1 && !(4..=limits.max_duration).contains(&args.duration) {
+        return Err(AppError::InvalidInput(format!(
+            "duration {} out of range for {}. Use [4,{}] or -1 for auto.",
+            args.duration, limits.label, limits.max_duration
         )));
     }
 

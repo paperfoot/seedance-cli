@@ -46,6 +46,11 @@ pub struct Manifest {
     pub video_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_frame_url: Option<String>,
+    /// Billed token count from the API (`usage.completion_tokens`). This is
+    /// the number BytePlus charges on -- recorded so agent fleets can audit
+    /// spend per clip straight from the sidecars.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completion_tokens: Option<i64>,
     pub downloaded_to: String,
 }
 

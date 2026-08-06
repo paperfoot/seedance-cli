@@ -1,6 +1,6 @@
 <div align="center">
 
-# Seedance CLI — ByteDance Seedance 2.0 from Your Terminal
+# Seedance CLI — ByteDance Seedance 2.0 / 2.5 from Your Terminal
 
 **Generate AI video with text, images, and reference footage. One Rust binary. No MCP server required.**
 
@@ -119,13 +119,13 @@ One task id from start to finish. Fire and forget, or pass `--wait` to block unt
 
 Seedance 2.0 accepts a free mix of references in a single `content` array:
 
-| Flag            | Kind  | Limit | Notes |
-|-----------------|-------|-------|-------|
-| `--image / -i`  | Image | 0–9   | Path (base64'd inline) or URL. Role: `reference_image` |
+| Flag            | Kind  | Limit (2.0 → 2.5) | Notes |
+|-----------------|-------|-------------------|-------|
+| `--image / -i`  | Image | 0–9 → 0–30  | Path (base64'd inline) or URL. Role: `reference_image` |
 | `--first-frame` | Image | 1     | Role: `first_frame` |
 | `--last-frame`  | Image | 1     | Role: `last_frame` (requires `--first-frame`) |
-| `--video / -v`  | Video | 0–3   | **URL only** (API restriction). Total ≤ 15s |
-| `--audio / -a`  | Audio | 0–3   | wav/mp3. Path (base64'd) or URL. Total ≤ 15s. Needs an image or video alongside. |
+| `--video / -v`  | Video | 0–3 → 0–10  | **URL only** (API restriction). Total ≤ 15s (30s on 2.5) |
+| `--audio / -a`  | Audio | 0–3 → 0–10  | wav/mp3. Path (base64'd) or URL. Total ≤ 15s (30s on 2.5). Needs an image or video alongside on 2.0; 2.5 supports audio-only. |
 
 Address references inside the prompt:
 
@@ -135,7 +135,9 @@ Address references inside the prompt:
 
 Use time codes for multi-shot: `[0-4s]: wide establishing shot; [4-8s]: push in`.
 
-Supported resolutions: `480p`, `720p`. Supported ratios: `16:9`, `4:3`, `1:1`, `3:4`, `9:16`, `21:9`, `adaptive`. Duration: 4–15s or `-1` for auto.
+Supported resolutions: `480p`, `720p`, `1080p`, `4k` (fast/mini tiers: 480p/720p only). Supported ratios: `16:9`, `4:3`, `1:1`, `3:4`, `9:16`, `21:9`, `adaptive`. Duration: 4–15s on Seedance 2.0 (4–30s on 2.5) or `-1` for auto.
+
+> **Seedance 2.5** (`dreamina-seedance-2-5-260628`) is published on ModelArk with pricing, but API access is still rolling out — calls return `ModelNotOpen` until you activate it in the Ark Console. The CLI is already 2.5-aware: pass `--model dreamina-seedance-2-5-260628` and the 30s duration ceiling, 30/10/10 reference caps, and audio-only driving all unlock automatically.
 
 ## Examples
 
@@ -210,7 +212,7 @@ Hard-won notes from real users, saved so you don't hit the same walls:
 - **Audio upload mutates lyrics.** Reported by @MrDavids1 and @simeonnz: uploading audio directly alters the song. Workaround — `seedance audio-to-video song.mp3 --upload`, then pass the printed URL as `--video`. The API trusts reference videos for audio content but post-processes raw audio.
 - **No real human faces in references.** ModelArk blocks direct upload of real human portraits. Either run the photo through `seedance prep-face` first, or build a `character-sheet` from one photo and use that.
 - **Videos must be URLs.** Host the file first (S3, Cloudinary, or `seedance upload` → tmpfiles.org) and pass the URL. Local files are rejected by the API.
-- **No 1080p.** Seedance 2.0 tops out at 720p. Use `--resolution 720p` — `1080p` returns an error.
+- **1080p and 4k are 2.0-only.** The full `dreamina-seedance-2-0-260128` model accepts `480p | 720p | 1080p | 4k`; the `--fast` and `--mini` tiers are 480p/720p only. 4k is 10-bit encoded and rate-limited hard (15 RPM, concurrency 1), so batch jobs should stay at 1080p or below.
 
 ## Commands
 

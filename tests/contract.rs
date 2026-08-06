@@ -113,6 +113,76 @@ fn generate_with_out_of_range_duration_fails() {
     assert!(v["error"]["message"].as_str().unwrap().contains("duration"));
 }
 
+/// Duration and reference caps are model-aware: 30s is out of range on the 2.0
+/// series but in range on 2.5. Both assertions below deliberately use inputs
+/// that fail *validation*, so neither test can reach the network.
+#[test]
+fn generate_duration_ceiling_is_model_aware() {
+    // 30s exceeds the 2.0-series ceiling of 15s.
+    let output = bin()
+        .args(["generate", "--prompt", "hi", "--duration", "30"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let v: Value = serde_json::from_slice(&output.stderr).unwrap();
+    let msg = v["error"]["message"].as_str().unwrap();
+    assert!(msg.contains("duration"), "{msg}");
+    assert!(msg.contains("Seedance 2.0"), "{msg}");
+    assert!(msg.contains("[4,15]"), "{msg}");
+
+    // 31s exceeds even the 2.5 ceiling of 30s, and the message names 2.5.
+    let output = bin()
+        .args([
+            "generate",
+            "--prompt",
+            "hi",
+            "--duration",
+            "31",
+            "--model",
+            "dreamina-seedance-2-5-260628",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let v: Value = serde_json::from_slice(&output.stderr).unwrap();
+    let msg = v["error"]["message"].as_str().unwrap();
+    assert!(msg.contains("Seedance 2.5"), "{msg}");
+    assert!(msg.contains("[4,30]"), "{msg}");
+}
+
+#[test]
+fn generate_priority_out_of_range_rejected() {
+    let output = bin()
+        .args(["generate", "--prompt", "hi", "--priority", "10"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let v: Value = serde_json::from_slice(&output.stderr).unwrap();
+    assert!(v["error"]["message"].as_str().unwrap().contains("priority"));
+}
+
+#[test]
+fn generate_image_cap_is_model_aware() {
+    // 31 images exceeds the 2.5 cap of 30; the 2.0 cap of 9 must not apply here.
+    let mut c = bin();
+    c.args([
+        "generate",
+        "--prompt",
+        "hi",
+        "--model",
+        "dreamina-seedance-2-5-260628",
+    ]);
+    for i in 0..31 {
+        c.args(["--image", &format!("https://example.com/{i}.png")]);
+    }
+    let output = c.output().unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let v: Value = serde_json::from_slice(&output.stderr).unwrap();
+    let msg = v["error"]["message"].as_str().unwrap();
+    assert!(msg.contains("too many reference images"), "{msg}");
+    assert!(msg.contains("Max 30 for Seedance 2.5"), "{msg}");
+}
+
 #[test]
 fn generate_audio_only_references_rejected() {
     let output = bin()
@@ -133,6 +203,31 @@ fn generate_audio_only_references_rejected() {
             .unwrap()
             .contains("audio cannot be the only reference")
     );
+}
+
+/// Seedance 2.5 officially supports audio-only driving, so the audio-only
+/// guard must not fire there. With no API key in the environment, validation
+/// passing means the failure moves on to the config (exit 2), not
+/// invalid_input (exit 3).
+#[test]
+fn generate_audio_only_allowed_on_seedance_2_5() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut c = isolated_bin(&tmp);
+    let output = c
+        .args([
+            "generate",
+            "--prompt",
+            "hi",
+            "--audio",
+            "https://example.com/a.wav",
+            "--model",
+            "dreamina-seedance-2-5-260628",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2), "expected config error, not validation");
+    let v: Value = serde_json::from_slice(&output.stderr).unwrap();
+    assert_eq!(v["error"]["code"], "config_error");
 }
 
 #[test]
