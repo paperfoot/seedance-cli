@@ -378,6 +378,21 @@ pub struct GenerateArgs {
     #[arg(long, value_name = "ID")]
     pub safety_identifier: Option<String>,
 
+    /// Also return the video's last frame (full resolution, NO watermark) --
+    /// the official chaining primitive. The URL lands in `last_frame_url` in
+    /// the output and sidecar; feed it to the next shot's --first-frame to
+    /// continue a scene without ffmpeg frame extraction.
+    #[arg(long)]
+    pub return_last_frame: bool,
+
+    /// Queue priority 0-9; higher jumps the queue (Seedance 2.0 series only).
+    #[arg(long, value_name = "0-9")]
+    pub priority: Option<i32>,
+
+    /// Expire the task if still queued/running after this many seconds
+    #[arg(long, value_name = "SECS")]
+    pub expires_after: Option<i64>,
+
     /// Block until the task finishes, then optionally download the video
     #[arg(long, short = 'w')]
     pub wait: bool,

@@ -39,6 +39,9 @@ Key flags for `generate`:
   --ratio                 16:9 | 4:3 | 1:1 | 3:4 | 9:16 | 21:9 | adaptive
   --fast                  Use Seedance 2.0 Fast
   --mini                  Use Seedance 2.0 Mini (cheapest 2.0-series tier)
+  --return-last-frame     Also return the final frame (full res, no watermark) as last_frame_url;
+                          feed it to the next shot's --first-frame to chain scenes
+  --priority              Queue priority 0-9 (2.0 series only; higher jumps the queue)
   --wait / --output       Block until done, download mp4 to ~/Documents/seedance/ by default
   --label                 Human slug in the default filename + sidecar manifest (e.g. "cafe-opening")
   --project               Nest output under ~/Documents/seedance/<project>/

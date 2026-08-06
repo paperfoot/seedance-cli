@@ -151,6 +151,17 @@ fn generate_duration_ceiling_is_model_aware() {
 }
 
 #[test]
+fn generate_priority_out_of_range_rejected() {
+    let output = bin()
+        .args(["generate", "--prompt", "hi", "--priority", "10"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(3));
+    let v: Value = serde_json::from_slice(&output.stderr).unwrap();
+    assert!(v["error"]["message"].as_str().unwrap().contains("priority"));
+}
+
+#[test]
 fn generate_image_cap_is_model_aware() {
     // 31 images exceeds the 2.5 cap of 30; the 2.0 cap of 9 must not apply here.
     let mut c = bin();

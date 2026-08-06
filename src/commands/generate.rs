@@ -80,6 +80,9 @@ pub fn run(ctx: Ctx, args: GenerateArgs) -> Result<(), AppError> {
         watermark: Some(args.watermark),
         callback_url: args.callback_url.clone(),
         safety_identifier: args.safety_identifier.clone(),
+        return_last_frame: args.return_last_frame.then_some(true),
+        priority: args.priority,
+        execution_expires_after: args.expires_after,
     };
 
     // Duplicate-guard: hash the request and reject identical retries within 10 minutes.
@@ -350,6 +353,14 @@ fn validate(args: &GenerateArgs, model: &str) -> Result<(), AppError> {
         return Err(AppError::InvalidInput(format!(
             "audio cannot be the only reference on {} -- add at least one --image or --video (Seedance 2.5 supports audio-only driving)",
             limits.label
+        )));
+    }
+
+    if let Some(p) = args.priority
+        && !(0..=9).contains(&p)
+    {
+        return Err(AppError::InvalidInput(format!(
+            "priority {p} out of range. Use 0-9 (higher jumps the queue; Seedance 2.0 series only)."
         )));
     }
 
