@@ -77,6 +77,10 @@ pub enum Resolution {
     P480,
     #[value(name = "720p")]
     P720,
+    #[value(name = "1080p")]
+    P1080,
+    #[value(name = "4k")]
+    K4,
 }
 
 impl Resolution {
@@ -84,6 +88,8 @@ impl Resolution {
         match self {
             Self::P480 => "480p",
             Self::P720 => "720p",
+            Self::P1080 => "1080p",
+            Self::K4 => "4k",
         }
     }
 }
@@ -284,8 +290,9 @@ pub struct GenerateArgs {
     #[arg(long, short = 'p')]
     pub prompt: Option<String>,
 
-    /// Reference image (local path or URL). Repeatable, up to 9.
-    /// Role is `reference_image`. Use --first-frame / --last-frame for those modes.
+    /// Reference image (local path or URL). Repeatable, up to 9 on Seedance 2.0
+    /// (30 on 2.5). Role is `reference_image`. Use --first-frame / --last-frame
+    /// for those modes.
     #[arg(long = "image", short = 'i', value_name = "PATH|URL")]
     pub images: Vec<String>,
 
@@ -302,21 +309,26 @@ pub struct GenerateArgs {
     )]
     pub last_frame: Option<String>,
 
-    /// Reference video URL (role=reference_video). Repeatable, up to 3, total <=15s.
-    /// Local paths are NOT supported by the API -- upload to a URL first.
+    /// Reference video URL (role=reference_video). Repeatable, up to 3 on
+    /// Seedance 2.0 (10 on 2.5), total <=15s. Local paths are NOT supported by
+    /// the API -- upload to a URL first.
     #[arg(long = "video", short = 'v', value_name = "URL")]
     pub videos: Vec<String>,
 
-    /// Reference audio (local path or URL, wav/mp3). Repeatable, up to 3, total <=15s.
-    /// Cannot be the only reference -- requires at least one image or video.
+    /// Reference audio (local path or URL, wav/mp3). Repeatable, up to 3 on
+    /// Seedance 2.0 (10 on 2.5), total <=15s. Cannot be the only reference --
+    /// requires at least one image or video.
     #[arg(long = "audio", short = 'a', value_name = "PATH|URL")]
     pub audio: Vec<String>,
 
-    /// Video duration in seconds. [4,15] or -1 for auto (Seedance 2.0).
+    /// Video duration in seconds. [4,15] or -1 for auto on Seedance 2.0;
+    /// [4,30] on Seedance 2.5.
     #[arg(long, short = 'd', default_value_t = 5, allow_hyphen_values = true)]
     pub duration: i32,
 
-    /// Output resolution. Seedance 2.0 does not support 1080p.
+    /// Output resolution. Seedance 2.0 supports all four; the fast and mini
+    /// tiers are 480p/720p only (server-enforced). 4k is 10-bit encoded and
+    /// runs under a much tighter rate limit (15 RPM, concurrency 1).
     #[arg(long, short = 'r', value_enum, default_value = "720p")]
     pub resolution: Resolution,
 
@@ -348,7 +360,12 @@ pub struct GenerateArgs {
     #[arg(long, conflicts_with = "model")]
     pub fast: bool,
 
-    /// Override model id (default: dreamina-seedance-2-0-260128, or the fast variant with --fast)
+    /// Use the Seedance 2.0 Mini tier (cheapest 2.0-series tier; 480p/720p only)
+    #[arg(long, conflicts_with_all = ["model", "fast"])]
+    pub mini: bool,
+
+    /// Override model id (default: dreamina-seedance-2-0-260128; the fast variant
+    /// with --fast, the mini variant with --mini)
     #[arg(long)]
     pub model: Option<String>,
 

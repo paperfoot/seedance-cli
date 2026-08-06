@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 
 use crate::api::{ApiClient, ContentItem, CreateTaskRequest, TaskInfo, UrlObject};
 use crate::cli::GenerateArgs;
-use crate::config::{self, DEFAULT_MODEL, DEFAULT_MODEL_FAST};
+use crate::config::{self, DEFAULT_MODEL, DEFAULT_MODEL_FAST, DEFAULT_MODEL_MINI};
 use crate::error::AppError;
 use crate::manifest::{self, Manifest, References};
 use crate::media::{self, Kind};
@@ -36,25 +36,31 @@ struct GenerateResult {
 }
 
 pub fn run(ctx: Ctx, args: GenerateArgs) -> Result<(), AppError> {
-    validate(&args)?;
-
     let cfg = config::load()?;
-    let api_key = config::resolve_api_key(args.api_key.as_deref(), &cfg).ok_or_else(|| {
-        AppError::Config(
-            "no API key found. Set SEEDANCE_API_KEY (or ARK_API_KEY), pass --api-key, or write it to config."
-                .into(),
-        )
-    })?;
 
+    // Resolve the model before validating: the reference caps and duration
+    // ceiling differ between the 2.0 series and 2.5, so the limits are only
+    // knowable once we know which model this request targets.
     let model = args.model.clone().unwrap_or_else(|| {
         if args.fast {
             DEFAULT_MODEL_FAST.to_string()
+        } else if args.mini {
+            DEFAULT_MODEL_MINI.to_string()
         } else if cfg.model == DEFAULT_MODEL {
             DEFAULT_MODEL.to_string()
         } else {
             cfg.model.clone()
         }
     });
+
+    validate(&args, &model)?;
+
+    let api_key = config::resolve_api_key(args.api_key.as_deref(), &cfg).ok_or_else(|| {
+        AppError::Config(
+            "no API key found. Set SEEDANCE_API_KEY (or ARK_API_KEY), pass --api-key, or write it to config."
+                .into(),
+        )
+    })?;
 
     let content = build_content(&args)?;
     let generate_audio = if args.no_audio_sync {
@@ -249,7 +255,41 @@ fn warn_on_slug_collapse(ctx: Ctx, flag: &str, raw: Option<&str>) {
     }
 }
 
-fn validate(args: &GenerateArgs) -> Result<(), AppError> {
+/// Per-model request envelope. Seedance 2.5 raises both the reference caps and
+/// the duration ceiling; every other published model follows the 2.0-series
+/// envelope. Unknown / future model ids fall back to the 2.0 numbers, which is
+/// the conservative choice -- the server rejects anything we let through.
+struct ModelLimits {
+    max_images: usize,
+    max_videos: usize,
+    max_audio: usize,
+    max_duration: i32,
+    label: &'static str,
+}
+
+fn limits_for(model: &str) -> ModelLimits {
+    if model.contains("seedance-2-5") {
+        ModelLimits {
+            max_images: 30,
+            max_videos: 10,
+            max_audio: 10,
+            max_duration: 30,
+            label: "Seedance 2.5",
+        }
+    } else {
+        ModelLimits {
+            max_images: 9,
+            max_videos: 3,
+            max_audio: 3,
+            max_duration: 15,
+            label: "Seedance 2.0",
+        }
+    }
+}
+
+fn validate(args: &GenerateArgs, model: &str) -> Result<(), AppError> {
+    let limits = limits_for(model);
+
     // Must have something to generate from.
     let has_prompt = args.prompt.as_deref().is_some_and(|s| !s.trim().is_empty());
     let has_refs = !args.images.is_empty()
@@ -262,22 +302,28 @@ fn validate(args: &GenerateArgs) -> Result<(), AppError> {
         ));
     }
 
-    if args.images.len() > 9 {
+    if args.images.len() > limits.max_images {
         return Err(AppError::InvalidInput(format!(
-            "too many reference images: {}. Max 9 for Seedance 2.0.",
-            args.images.len()
+            "too many reference images: {}. Max {} for {}.",
+            args.images.len(),
+            limits.max_images,
+            limits.label
         )));
     }
-    if args.videos.len() > 3 {
+    if args.videos.len() > limits.max_videos {
         return Err(AppError::InvalidInput(format!(
-            "too many reference videos: {}. Max 3 (and total duration <=15s, server-enforced).",
-            args.videos.len()
+            "too many reference videos: {}. Max {} for {} (and total duration <=15s, server-enforced).",
+            args.videos.len(),
+            limits.max_videos,
+            limits.label
         )));
     }
-    if args.audio.len() > 3 {
+    if args.audio.len() > limits.max_audio {
         return Err(AppError::InvalidInput(format!(
-            "too many reference audio clips: {}. Max 3 (and total duration <=15s, server-enforced).",
-            args.audio.len()
+            "too many reference audio clips: {}. Max {} for {} (and total duration <=15s, server-enforced).",
+            args.audio.len(),
+            limits.max_audio,
+            limits.label
         )));
     }
 
@@ -291,10 +337,10 @@ fn validate(args: &GenerateArgs) -> Result<(), AppError> {
         ));
     }
 
-    if args.duration != -1 && !(4..=15).contains(&args.duration) {
+    if args.duration != -1 && !(4..=limits.max_duration).contains(&args.duration) {
         return Err(AppError::InvalidInput(format!(
-            "duration {} out of range. Use [4,15] or -1 for auto.",
-            args.duration
+            "duration {} out of range for {}. Use [4,{}] or -1 for auto.",
+            args.duration, limits.label, limits.max_duration
         )));
     }
 

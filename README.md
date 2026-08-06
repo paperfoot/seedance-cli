@@ -210,7 +210,7 @@ Hard-won notes from real users, saved so you don't hit the same walls:
 - **Audio upload mutates lyrics.** Reported by @MrDavids1 and @simeonnz: uploading audio directly alters the song. Workaround — `seedance audio-to-video song.mp3 --upload`, then pass the printed URL as `--video`. The API trusts reference videos for audio content but post-processes raw audio.
 - **No real human faces in references.** ModelArk blocks direct upload of real human portraits. Either run the photo through `seedance prep-face` first, or build a `character-sheet` from one photo and use that.
 - **Videos must be URLs.** Host the file first (S3, Cloudinary, or `seedance upload` → tmpfiles.org) and pass the URL. Local files are rejected by the API.
-- **No 1080p.** Seedance 2.0 tops out at 720p. Use `--resolution 720p` — `1080p` returns an error.
+- **1080p and 4k are 2.0-only.** The full `dreamina-seedance-2-0-260128` model accepts `480p | 720p | 1080p | 4k`; the `--fast` and `--mini` tiers are 480p/720p only. 4k is 10-bit encoded and rate-limited hard (15 RPM, concurrency 1), so batch jobs should stay at 1080p or below.
 
 ## Commands
 

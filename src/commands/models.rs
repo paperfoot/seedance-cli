@@ -14,16 +14,29 @@ struct ModelEntry {
 }
 
 pub fn run(ctx: Ctx) -> Result<(), AppError> {
-    // Snapshot of models available on ModelArk as of 2026-04.
+    // Snapshot of models available on ModelArk as of 2026-08-06.
     // Source: https://docs.byteplus.com/en/docs/ModelArk/1330310
     let models = vec![
+        ModelEntry {
+            id: "dreamina-seedance-2-5-260628",
+            name: "Seedance 2.5",
+            tier: "standard",
+            audio: true,
+            max_resolution: "720p",
+            notes: "NOT YET OPEN: BytePlus has published the model and its pricing, but \
+                    Playground/API access is still rolling out -- calls return ModelNotOpen \
+                    until you activate it in the Ark Console. Up to 30s per generation; \
+                    references: 30 images, 10 videos, 10 audio clips.",
+        },
         ModelEntry {
             id: "dreamina-seedance-2-0-260128",
             name: "Seedance 2.0",
             tier: "standard",
             audio: true,
-            max_resolution: "720p",
-            notes: "Best quality. Multimodal references: 1-9 images, 1-3 videos, 1-3 audio clips.",
+            max_resolution: "4k",
+            notes: "Best generally-available quality. 480p/720p/1080p/4k (4k is 10-bit and \
+                    capped at 15 RPM / concurrency 1). Multimodal references: 1-9 images, \
+                    1-3 videos, 1-3 audio clips.",
         },
         ModelEntry {
             id: "dreamina-seedance-2-0-fast-260128",
@@ -32,6 +45,14 @@ pub fn run(ctx: Ctx) -> Result<(), AppError> {
             audio: true,
             max_resolution: "720p",
             notes: "Same features as 2.0 with lower latency and cost.",
+        },
+        ModelEntry {
+            id: "dreamina-seedance-2-0-mini-260615",
+            name: "Seedance 2.0 Mini",
+            tier: "mini",
+            audio: true,
+            max_resolution: "720p",
+            notes: "Cheapest 2.0-series tier. Same capability set as 2.0 Fast.",
         },
         ModelEntry {
             id: "seedance-1-5-pro-251215",

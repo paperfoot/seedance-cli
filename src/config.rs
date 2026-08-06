@@ -10,6 +10,7 @@ use crate::error::AppError;
 pub const DEFAULT_BASE_URL: &str = "https://ark.ap-southeast.bytepluses.com/api/v3";
 pub const DEFAULT_MODEL: &str = "dreamina-seedance-2-0-260128";
 pub const DEFAULT_MODEL_FAST: &str = "dreamina-seedance-2-0-fast-260128";
+pub const DEFAULT_MODEL_MINI: &str = "dreamina-seedance-2-0-mini-260615";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
