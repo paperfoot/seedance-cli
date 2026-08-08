@@ -205,7 +205,7 @@ pub fn run() {
             "fast_model": crate::config::DEFAULT_MODEL_FAST,
             "mini_model": crate::config::DEFAULT_MODEL_MINI,
             "reference_limits": {
-                "note": "Limits below are the Seedance 2.0 series envelope. Seedance 2.5 raises them to 30 images / 10 videos / 10 audio (30s combined for videos and audio), allows up to 30s output, and supports audio-only driving.",
+                "note": "Limits below are the Seedance 2.0 series envelope. Seedance 2.5 raises them to 30 images / 10 videos / 10 audio (video and audio duration counted separately, each <=30s combined), allows up to 30s output, and supports audio-only driving. 2.5 activation requires a prepaid resource pack (5M tokens / USD 32 minimum). 2.5 task-type constraints: video-edit tasks require ratio=adaptive AND duration=-1; extension and first/last-frame tasks require ratio=adaptive -- violations fail asynchronously with InvalidParameter.TaskTypeConstraint.",
                 "images": "0-9",
                 "videos": "0-3 URLs, total <=15s, local paths not supported by API",
                 "audio": "0-3 (wav/mp3), total <=15s, must accompany at least one image or video"

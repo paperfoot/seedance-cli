@@ -94,6 +94,8 @@ pub fn run(ctx: Ctx, args: GenerateArgs) -> Result<(), AppError> {
         None
     };
 
+    warn_on_25_task_type_constraints(ctx, &args, &model);
+
     let api = ApiClient::new(&cfg.base_url, &api_key)?;
     output::info(ctx, &format!("creating task ({model})"));
     let created = api.create_task(&request)?;
@@ -255,6 +257,41 @@ fn warn_on_slug_collapse(ctx: Ctx, flag: &str, raw: Option<&str>) {
             &format!(
                 "--{flag} {r:?} contains no ASCII alphanumerics; it will not appear in the filename or directory. Use an ASCII slug to keep the shot labelled."
             ),
+        );
+    }
+}
+
+/// Seedance 2.5 classifies each request into a task type from content.role +
+/// prompt intent, and video-editing / video-extension tasks carry hard
+/// parameter constraints (editing: ratio=adaptive AND duration=-1; extension:
+/// ratio=adaptive). Violations fail ASYNCHRONOUSLY with
+/// InvalidParameter.TaskTypeConstraint -- after queueing, which wastes wall
+/// clock. We can't classify the prompt reliably client-side, so when the
+/// request *looks* like an edit/extend (2.5 + a reference video + trigger
+/// keywords per the official Must-read doc) and the params would violate the
+/// constraints, warn -- never block.
+fn warn_on_25_task_type_constraints(ctx: Ctx, args: &GenerateArgs, model: &str) {
+    if !model.contains("seedance-2-5") || args.videos.is_empty() {
+        return;
+    }
+    let prompt = args.prompt.as_deref().unwrap_or("").to_ascii_lowercase();
+    const TRIGGERS: &[&str] = &[
+        "edit the video", "add ", "delete", "remove", "modify", "replace", "change",
+        "extend", "continue",
+    ];
+    if !TRIGGERS.iter().any(|t| prompt.contains(t)) {
+        return;
+    }
+    let ratio_bad = args.ratio.as_api() != "adaptive";
+    let duration_bad = args.duration != -1;
+    if ratio_bad || duration_bad {
+        output::warn(
+            ctx,
+            "prompt looks like a Seedance 2.5 video-edit/extension task: the API requires \
+             --ratio adaptive (and --duration -1 for edits) for those, and violations fail \
+             asynchronously with InvalidParameter.TaskTypeConstraint after queueing. If this \
+             is a plain reference-to-video request, consider rephrasing to avoid \
+             edit/extend trigger words.",
         );
     }
 }

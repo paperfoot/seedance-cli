@@ -388,7 +388,7 @@ pub struct GenerateArgs {
     #[arg(long)]
     pub return_last_frame: bool,
 
-    /// Queue priority 0-9; higher jumps the queue (Seedance 2.0 series only).
+    /// Queue priority 0-9; higher jumps the queue (Seedance 2.0 series and 2.5).
     #[arg(long, value_name = "0-9")]
     pub priority: Option<i32>,
 

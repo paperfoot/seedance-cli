@@ -23,10 +23,12 @@ pub fn run(ctx: Ctx) -> Result<(), AppError> {
             tier: "standard",
             audio: true,
             max_resolution: "720p",
-            notes: "NOT YET OPEN: BytePlus has published the model and its pricing, but \
-                    Playground/API access is still rolling out -- calls return ModelNotOpen \
-                    until you activate it in the Ark Console. Up to 30s per generation; \
-                    references: 30 images, 10 videos, 10 audio clips.",
+            notes: "Public since 2026-08-07. Activation requires a PREPAID Seedance 2.5 \
+                    resource pack (smallest: 5M tokens / USD 32, expires 90 days) -- \
+                    account balance alone is not enough; without a pack, calls return \
+                    ModelNotOpen. Up to 30s per generation; references: 30 images, 10 \
+                    videos, 10 audio; audio-only input supported. Edit/extend/first-frame \
+                    tasks require --ratio adaptive (edits also --duration -1).",
         },
         ModelEntry {
             id: "dreamina-seedance-2-0-260128",
